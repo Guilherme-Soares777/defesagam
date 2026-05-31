@@ -1,10 +1,17 @@
 import processing.sound.*; 
 
-// Imagens e Sons
+// --- IMAGENS E SONS ---
 PImage bgImg, baseImg, canoImg, heliImg, pqdImg, projetilImg;
 SoundFile somExplosao; 
+SoundFile somTiro;
+SoundFile somGrito;
 
-// Listas para os tiros e inimigos no ecrã
+// --- VARIÁVEIS DA ANIMAÇÃO DO LOADING ---
+PImage spriteSheetRun;
+int numFrames = 11; // Os 11 bonecos da tua tira ajustada
+PImage[] runAnim;
+
+// --- LISTAS PARA OS OBJETOS NO ECRÃ ---
 ArrayList<Bullet> bullets;
 ArrayList<Helicopter> helicopters;
 ArrayList<Paratrooper> pqds;
@@ -17,24 +24,24 @@ Player player;
 int score = 0;
 int vidas = 3; 
 int heliSpawnTimer = 0;
-int gameState = 0; // 0: Loading, 1: A jogar, 2: Game Over
+int gameState = 0; // 0: Loading, 3: Tela Inicial, 1: A jogar, 2: Game Over
 int loadStartTime;
-int lastMissileTime = -3000; // Tempo do míssil
+int lastMissileTime = -3000; // Tempo do míssil para começar pronto
 
 void setup() {
-  size(800, 600); // Tamanho da janela
+  size(800, 600); 
   imageMode(CENTER); 
   
-  // Prepara as listas
   bullets = new ArrayList<Bullet>();
   helicopters = new ArrayList<Helicopter>();
   pqds = new ArrayList<Paratrooper>();
   particles = new ArrayList<Particle>();
   
-  // Carrega as imagens
+  // --- CARREGA AS IMAGENS ---
   bgImg = loadImage("fundo.jpg");
   if (bgImg != null) bgImg.resize(width, height);
   
+  // Se a tua torreta nova ficar gigante ou minúscula, ajusta o 80, 80 aqui
   baseImg = loadImage("base.png");
   if (baseImg != null) baseImg.resize(80, 80);
   
@@ -50,11 +57,32 @@ void setup() {
   projetilImg = loadImage("tiro.png"); 
   if (projetilImg != null) projetilImg.resize(15, 35); 
   
-  // Carrega o som
+  // --- CARREGA E FATIA A ANIMAÇÃO DO BONECO ---
+  spriteSheetRun = loadImage("boneco_run.png");
+  if (spriteSheetRun != null) {
+    runAnim = new PImage[numFrames];
+    int frameW = spriteSheetRun.width / numFrames; 
+    int frameH = spriteSheetRun.height;
+    
+    for (int i = 0; i < numFrames; i++) {
+      runAnim[i] = spriteSheetRun.get(i * frameW, 0, frameW, frameH);
+    }
+  } else {
+    println("Erro: Não encontrou o boneco_run.png na pasta data.");
+  }
+  
+  // --- CARREGA OS SONS E AJUSTA O VOLUME ---
   try {
     somExplosao = new SoundFile(this, "explosion.mp3");
+    somExplosao.amp(0.6); // Explosão num volume bom
+    
+    somTiro = new SoundFile(this, "tiro.mp3");
+    somTiro.amp(0.4); // Tiro mais baixo para não ensurdecer
+    
+    somGrito = new SoundFile(this, "grito_pqd.mp3");
+    somGrito.amp(0.01); // Wilhelm Scream ajustado
   } catch (Exception e) {
-    println("Erro no som da explosão.");
+    println("Erro ao carregar os sons. Verifique os nomes na pasta data.");
   }
   
   player = new Player();
@@ -62,22 +90,95 @@ void setup() {
 }
 
 void draw() {
-  // --- TELA DE LOADING ---
+  // --- TELA DE LOADING (gameState 0) ---
   if (gameState == 0) {
     background(0);
+    
+    // Desenha o boneco correndo
+    if (runAnim != null && runAnim[0] != null) {
+      int frameAtual = (frameCount / 5) % numFrames; 
+      
+      pushMatrix();
+      translate(width/2, height/2 - 40);
+      scale(2.5); 
+      image(runAnim[frameAtual], 0, 0);
+      popMatrix();
+    }
+    
     fill(255);
     textSize(28);
     textAlign(CENTER, CENTER);
-    text("A esconder os bugs do professor... Aguarda.", width/2, height/2);
+    text("A esconder os bugs do professor... Aguarda.", width/2, height/2 + 80);
     
-    // Inicia o jogo após 2.5 segundos
+    // Passa para a Tela de Início após 2.5s
     if (millis() - loadStartTime > 2500) {
-      gameState = 1;
+      gameState = 3;
     }
     return; 
   }
+
+  // --- TELA DE INÍCIO / HISTÓRIA, JOGABILIDADE E CRÉDITOS (gameState 3) ---
+  if (gameState == 3) {
+    if (bgImg != null) {
+      imageMode(CORNER);
+      tint(255, 130, 130); 
+      image(bgImg, 0, 0);
+      noTint();
+      imageMode(CENTER);
+    } else {
+      background(40, 15, 15); 
+    }
+    
+    fill(0, 205);
+    rectMode(CORNER);
+    rect(40, 40, width - 80, height - 80, 15);
+    
+    fill(255, 80, 80);
+    textAlign(CENTER, TOP);
+    textSize(38);
+    text("DEFESA DA CIDADE", width/2, 60);
+    
+    fill(210);
+    textSize(17);
+    String historia = "Após um ataque surpresa de uma nação inimiga,\num bravo operador de torreta tenta defender os céus\nde sua cidade dos ataques aéreos sem nenhum apoio.";
+    text(historia, width/2, 120);
+    
+    fill(255);
+    textSize(20);
+    text("COMO JOGAR:", width/2, 210);
+    
+    textSize(15);
+    fill(180, 240, 180);
+    text("• MOUSE: Mira a torreta antiaérea", width/2, 245);
+    text("• BOTÃO ESQUERDO: Disparo rápido da metralhadora", width/2, 270);
+    text("• BOTÃO DIREITO: Míssil pesado de área (Recarga de 3s)", width/2, 295);
+    
+    fill(255);
+    textSize(19);
+    text("DESENVOLVIDO POR (777 STUDIOS):", width/2, 345);
+    
+    textSize(14);
+    fill(200);
+    textAlign(LEFT, TOP);
+    text("• Assuero Eduardo C. Guimarães\n• Giovanni Saverio S. Rocha\n• Guilherme Soares de A. Rocha", width/2 - 260, 380);
+    
+    text("• Maria Clara P. de Sousa\n• Matheus Rodrigues de Souza\n• Thaysa Maria C. Santiago", width/2 + 30, 380);
+    
+    textAlign(CENTER, TOP);
+    textSize(15);
+    fill(255, 130, 130);
+    text("Não deixe os paraquedistas tocarem no chão!", width/2, 455);
+    
+    fill(255, 255, 0);
+    textSize(19);
+    if (millis() % 1000 < 500) {
+      text("CLIQUE NA TELA PARA INICIAR A DEFESA", width/2, 500);
+    }
+    
+    return; 
+  }
   
-  // --- TELA DE GAME OVER ---
+  // --- TELA DE GAME OVER (gameState 2) ---
   if (gameState == 2) {
     background(50, 0, 0); 
     fill(255);
@@ -91,9 +192,7 @@ void draw() {
     return; 
   }
   
-  // --- JOGO A CORRER ---
-  
-  // Desenha o fundo
+  // --- JOGO A CORRER (gameState 1) ---
   if (bgImg != null) {
     imageMode(CORNER);
     image(bgImg, 0, 0);
@@ -102,7 +201,6 @@ void draw() {
     background(50);
   }
   
-  // Dificuldade: helicópteros aparecem mais rápido com o tempo
   int currentSpawnRate = (int) max(40, 120 - (score / 10));
   
   heliSpawnTimer++;
@@ -111,7 +209,6 @@ void draw() {
     heliSpawnTimer = 0;
   }
   
-  // Atualiza tiros
   for (int i = bullets.size() - 1; i >= 0; i--) {
     Bullet b = bullets.get(i);
     b.update();
@@ -119,7 +216,6 @@ void draw() {
     if (b.x < 0 || b.x > width || b.y < 0) bullets.remove(i);
   }
   
-  // Atualiza helicópteros
   for (int i = helicopters.size() - 1; i >= 0; i--) {
     Helicopter h = helicopters.get(i);
     h.update();
@@ -127,23 +223,20 @@ void draw() {
     if (h.x < -200 || h.x > width + 200) helicopters.remove(i);
   }
   
-  // Atualiza paraquedistas
   for (int i = pqds.size() - 1; i >= 0; i--) {
     Paratrooper p = pqds.get(i);
     p.update();
     p.display();
     
-    // Se o paraquedista chegar ao chão, perde vida
     if (p.y > height) {
       pqds.remove(i); 
       vidas--; 
       if (vidas <= 0) {
-        gameState = 2; // Fim de jogo
+        gameState = 2; 
       }
     }
   }
   
-  // Atualiza faíscas
   for (int i = particles.size() - 1; i >= 0; i--) {
     Particle part = particles.get(i);
     part.update();
@@ -156,29 +249,22 @@ void draw() {
     Bullet b = bullets.get(i);
     boolean hit = false;
     
-    // Tiro no Helicóptero
+    // Tiro x Helicóptero
     for (int j = helicopters.size() - 1; j >= 0; j--) {
       Helicopter h = helicopters.get(j);
       
       if (dist(b.x, b.y, h.x, h.y) < 50) { 
-        
-        // Dano: Míssil tira 3, Tiro normal tira 1
         if (b.isMissile) h.hp -= 3; 
         else { h.hp -= 1; h.hitTimer = 5; }
         
-        // Se morreu
         if (h.hp <= 0) {
           if (somExplosao != null) somExplosao.play(); 
-          
-          // Cria faíscas
           for (int k = 0; k < 20; k++) {
             particles.add(new Particle(h.x, h.y, color(255, random(100, 200), 0))); 
           }
-          
           helicopters.remove(j); 
           score += 50; 
         }
-        
         hit = true;
         break; 
       }
@@ -189,16 +275,17 @@ void draw() {
       continue; 
     }
     
-    // Tiro no Paraquedista
+    // Tiro x Paraquedista
     for (int j = pqds.size() - 1; j >= 0; j--) {
       Paratrooper p = pqds.get(j);
       if (dist(b.x, b.y, p.x, p.y) < 25) { 
         
-        // Cria faíscas vermelhas
+        // --- TOCA O GRITO AQUI ---
+        if (somGrito != null) somGrito.play();
+        
         for (int k = 0; k < 15; k++) {
           particles.add(new Particle(p.x, p.y, color(139, 0, 0)));
         }
-        
         pqds.remove(j); 
         hit = true;
         score += 10; 
@@ -209,50 +296,61 @@ void draw() {
     if (hit) bullets.remove(i);
   }
   
-  // Desenha o canhão
   player.display();
   
-  // --- TEXTOS NO ECRÃ ---
   fill(255);
   textSize(24);
   textAlign(LEFT, TOP);
   text("Pontos: " + score, 10, 10);
   
   textAlign(RIGHT, TOP);
-  fill(vidas == 1 ? color(255, 0, 0) : color(255)); // Vermelho se tiver 1 vida
+  fill(vidas == 1 ? color(255, 0, 0) : color(255)); 
   text("Vidas: " + vidas, width - 10, 10);
-  
-  // Status do Míssil
-  textAlign(RIGHT, BOTTOM);
-  int timeSinceMissile = millis() - lastMissileTime;
-  if (timeSinceMissile >= 3000) {
-    fill(0, 255, 0); 
-    text("Míssil (Botão Direito): PRONTO", width - 10, height - 10);
-  } else {
-    fill(255, 0, 0); 
-    float faltam = 3.0 - (timeSinceMissile / 1000.0);
-    text("Míssil (Botão Direito): " + nf(faltam, 1, 1) + "s", width - 10, height - 10);
-  }
 }
 
-// --- CLIQUE DO RATO ---
 void mousePressed() {
+  if (gameState == 3) {
+    gameState = 1;
+    lastMissileTime = millis() - 3000; 
+    return;
+  }
+
   if (gameState == 1) {
-    // Calcula a mira
     float angle = atan2(mouseY - player.y, mouseX - player.x);
-    float pontaCanhaoX = player.x + cos(angle) * 40;
-    float pontaCanhaoY = player.y + sin(angle) * 40;
+    
+    // --- AJUSTES DA PONTA DO CANO ---
+    // 'distPonta' empurra o tiro mais pra frente pra sair do cano longo (aumentei de 40 pra 65)
+    float distPonta = 65; 
+    
+    // 'distLado' afasta a bala do centro pra sair exatamente dos canos duplos
+    float distLado = 12; 
+    
+    // Acha a lateral do canhão matematicamente (ângulo + 90 graus)
+    float anguloLateral = angle + HALF_PI;
+    
+    // Alterna o tiro aleatoriamente entre o cano esquerdo e o direito
+    float ladoAleatorio = random(1) > 0.5 ? distLado : -distLado;
+    
+    // Calcula a posição final exata de onde a bala deve nascer
+    float pontaCanhaoX = player.x + (cos(angle) * distPonta) + (cos(anguloLateral) * ladoAleatorio);
+    float pontaCanhaoY = player.y + (sin(angle) * distPonta) + (sin(anguloLateral) * ladoAleatorio);
     
     if (mouseButton == LEFT) {
-      bullets.add(new Bullet(pontaCanhaoX, pontaCanhaoY, mouseX, mouseY, false)); // Tiro normal
+      bullets.add(new Bullet(pontaCanhaoX, pontaCanhaoY, mouseX, mouseY, false)); 
+      if (somTiro != null) somTiro.play();
+      
     } else if (mouseButton == RIGHT) {
       if (millis() - lastMissileTime >= 3000) { 
-        bullets.add(new Bullet(pontaCanhaoX, pontaCanhaoY, mouseX, mouseY, true)); // Míssil
+        // O míssil é grandão, então ele sai do meio da torreta ignorando os lados
+        float missilX = player.x + (cos(angle) * distPonta);
+        float missilY = player.y + (sin(angle) * distPonta);
+        
+        bullets.add(new Bullet(missilX, missilY, mouseX, mouseY, true)); 
+        if (somExplosao != null) somExplosao.play();
         lastMissileTime = millis(); 
       }
     }
   } 
-  // Reinicia o jogo no Game Over
   else if (gameState == 2) {
     score = 0;
     vidas = 3;
@@ -264,10 +362,7 @@ void mousePressed() {
     gameState = 1;
   }
 }
-
 // ================= CLASSES =================
-
-// Canhão e Base
 class Player {
   float x, y;
   Player() {
@@ -275,20 +370,28 @@ class Player {
     y = height - 40; 
   }
   void display() {
-    // Desenha a base parada
+    // Desenha a base
     if (baseImg != null) image(baseImg, x, y + 15); 
     
-    // Roda apenas o cano para seguir o rato
     float angle = atan2(mouseY - y, mouseX - x); 
     pushMatrix();
-    translate(x, y - 5); 
-    rotate(angle);
-    if (canoImg != null) image(canoImg, 25, 0); 
+    
+    // Centraliza o pino de rotação certinho no meio da base verde
+    translate(x, y - 8); 
+    
+    // --- A CORREÇÃO DOS 90 GRAUS AQUI ---
+    // Somamos HALF_PI para compensar o fato da imagem original apontar para cima
+    rotate(angle + HALF_PI); 
+    
+    // Como o eixo da imagem girou, para empurrar o cano "pra frente" e ficar rente,
+    // agora nós mexemos no eixo Y negativo (para cima, na visão local do cano).
+    // Se o cano ficar muito solto ou muito para dentro, aumenta ou diminui esse "-15".
+    if (canoImg != null) image(canoImg, 0, -15); 
+    
     popMatrix();
   }
 }
 
-// Tiros
 class Bullet {
   float x, y, dx, dy;
   float speed = 15;
@@ -322,7 +425,6 @@ class Bullet {
   }
 }
 
-// Helicópteros
 class Helicopter {
   float x, y, speed;
   int direction;
@@ -340,7 +442,6 @@ class Helicopter {
     x += speed;
     spawnTimer++;
     
-    // Larga um paraquedista aleatoriamente
     if (spawnTimer > 60 && random(1) < 0.02 && x > 50 && x < width - 50) {
       pqds.add(new Paratrooper(x, y + 30)); 
       spawnTimer = 0;
@@ -352,7 +453,7 @@ class Helicopter {
       pushMatrix();
       translate(x, y);
       if (direction == 1) scale(-1, 1); 
-      if (hitTimer > 0) tint(255, 100, 100); // Pisca vermelho se levar dano
+      if (hitTimer > 0) tint(255, 100, 100); 
       image(heliImg, 0, 0);
       noTint(); 
       popMatrix();
@@ -360,7 +461,6 @@ class Helicopter {
   }
 }
 
-// Paraquedistas
 class Paratrooper {
   float x, y, speedY;
   Paratrooper(float startX, float startY) {
@@ -371,7 +471,6 @@ class Paratrooper {
   void display() { if (pqdImg != null) image(pqdImg, x, y); }
 }
 
-// Faíscas
 class Particle {
   float x, y, vx, vy, timer, size;
   color c;
