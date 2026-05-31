@@ -8,10 +8,10 @@ SoundFile somGrito;
 
 // --- VARIÁVEIS DA ANIMAÇÃO DO LOADING ---
 PImage spriteSheetRun;
-int numFrames = 11; // Os 11 bonecos da tua tira ajustada
+int numFrames = 11; // Os 11 bonecos da animação
 PImage[] runAnim;
 
-// --- LISTAS PARA OS OBJETOS NO ECRÃ ---
+// --- LISTAS PARA OS OBJETOS NA TELA ---
 ArrayList<Bullet> bullets;
 ArrayList<Helicopter> helicopters;
 ArrayList<Paratrooper> pqds;
@@ -24,9 +24,9 @@ Player player;
 int score = 0;
 int vidas = 3; 
 int heliSpawnTimer = 0;
-int gameState = 0; // 0: Loading, 3: Tela Inicial, 1: A jogar, 2: Game Over
+int gameState = 0; // 0: Loading, 3: Tela Inicial, 1: Jogando, 2: Game Over
 int loadStartTime;
-int lastMissileTime = -3000; // Tempo do míssil para começar pronto
+int lastMissileTime = -3000; // Tempo do míssil
 
 void setup() {
   size(800, 600); 
@@ -41,7 +41,6 @@ void setup() {
   bgImg = loadImage("fundo.jpg");
   if (bgImg != null) bgImg.resize(width, height);
   
-  // Se a tua torreta nova ficar gigante ou minúscula, ajusta o 80, 80 aqui
   baseImg = loadImage("base.png");
   if (baseImg != null) baseImg.resize(80, 80);
   
@@ -74,13 +73,13 @@ void setup() {
   // --- CARREGA OS SONS E AJUSTA O VOLUME ---
   try {
     somExplosao = new SoundFile(this, "explosion.mp3");
-    somExplosao.amp(0.6); // Explosão num volume bom
+    somExplosao.amp(0.6); 
     
     somTiro = new SoundFile(this, "tiro.mp3");
-    somTiro.amp(0.4); // Tiro mais baixo para não ensurdecer
+    somTiro.amp(0.4); 
     
     somGrito = new SoundFile(this, "grito_pqd.mp3");
-    somGrito.amp(0.01); // Wilhelm Scream ajustado
+    somGrito.amp(0.05); // Volume configurado apenas no setup (5%)
   } catch (Exception e) {
     println("Erro ao carregar os sons. Verifique os nomes na pasta data.");
   }
@@ -108,16 +107,15 @@ void draw() {
     fill(255);
     textSize(28);
     textAlign(CENTER, CENTER);
-    text("A esconder os bugs do professor... Aguarda.", width/2, height/2 + 80);
+    text("Escondendo os bugs do professor... Aguarde.", width/2, height/2 + 80);
     
-    // Passa para a Tela de Início após 2.5s
     if (millis() - loadStartTime > 2500) {
       gameState = 3;
     }
     return; 
   }
 
-  // --- TELA DE INÍCIO / HISTÓRIA, JOGABILIDADE E CRÉDITOS (gameState 3) ---
+  // --- TELA DE INÍCIO / HISTÓRIA E CRÉDITOS (gameState 3) ---
   if (gameState == 3) {
     if (bgImg != null) {
       imageMode(CORNER);
@@ -188,11 +186,11 @@ void draw() {
     textSize(24);
     text("Pontuação Final: " + score, width/2, height/2 + 20);
     textSize(18);
-    text("Clica no ecrã para tentar novamente", width/2, height/2 + 70);
+    text("Clique no mouse para reiniciar", width/2, height/2 + 70);
     return; 
   }
   
-  // --- JOGO A CORRER (gameState 1) ---
+  // --- JOGO RODANDO (gameState 1) ---
   if (bgImg != null) {
     imageMode(CORNER);
     image(bgImg, 0, 0);
@@ -280,7 +278,7 @@ void draw() {
       Paratrooper p = pqds.get(j);
       if (dist(b.x, b.y, p.x, p.y) < 25) { 
         
-        // --- TOCA O GRITO AQUI ---
+        // --- TOCA O GRITO AQUI (De forma simples) ---
         if (somGrito != null) somGrito.play();
         
         for (int k = 0; k < 15; k++) {
@@ -318,20 +316,12 @@ void mousePressed() {
   if (gameState == 1) {
     float angle = atan2(mouseY - player.y, mouseX - player.x);
     
-    // --- AJUSTES DA PONTA DO CANO ---
-    // 'distPonta' empurra o tiro mais pra frente pra sair do cano longo (aumentei de 40 pra 65)
+    // Ajustes do canhão duplo da nova torreta
     float distPonta = 65; 
-    
-    // 'distLado' afasta a bala do centro pra sair exatamente dos canos duplos
     float distLado = 12; 
-    
-    // Acha a lateral do canhão matematicamente (ângulo + 90 graus)
     float anguloLateral = angle + HALF_PI;
-    
-    // Alterna o tiro aleatoriamente entre o cano esquerdo e o direito
     float ladoAleatorio = random(1) > 0.5 ? distLado : -distLado;
     
-    // Calcula a posição final exata de onde a bala deve nascer
     float pontaCanhaoX = player.x + (cos(angle) * distPonta) + (cos(anguloLateral) * ladoAleatorio);
     float pontaCanhaoY = player.y + (sin(angle) * distPonta) + (sin(anguloLateral) * ladoAleatorio);
     
@@ -341,7 +331,6 @@ void mousePressed() {
       
     } else if (mouseButton == RIGHT) {
       if (millis() - lastMissileTime >= 3000) { 
-        // O míssil é grandão, então ele sai do meio da torreta ignorando os lados
         float missilX = player.x + (cos(angle) * distPonta);
         float missilY = player.y + (sin(angle) * distPonta);
         
@@ -362,6 +351,7 @@ void mousePressed() {
     gameState = 1;
   }
 }
+
 // ================= CLASSES =================
 class Player {
   float x, y;
@@ -370,22 +360,17 @@ class Player {
     y = height - 40; 
   }
   void display() {
-    // Desenha a base
     if (baseImg != null) image(baseImg, x, y + 15); 
     
     float angle = atan2(mouseY - y, mouseX - x); 
     pushMatrix();
     
-    // Centraliza o pino de rotação certinho no meio da base verde
     translate(x, y - 8); 
     
-    // --- A CORREÇÃO DOS 90 GRAUS AQUI ---
-    // Somamos HALF_PI para compensar o fato da imagem original apontar para cima
+    // Compensa os 90 graus da imagem virada para cima
     rotate(angle + HALF_PI); 
     
-    // Como o eixo da imagem girou, para empurrar o cano "pra frente" e ficar rente,
-    // agora nós mexemos no eixo Y negativo (para cima, na visão local do cano).
-    // Se o cano ficar muito solto ou muito para dentro, aumenta ou diminui esse "-15".
+    // Cola o cano na base
     if (canoImg != null) image(canoImg, 0, -15); 
     
     popMatrix();
